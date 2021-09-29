@@ -23,6 +23,16 @@ This README would normally document whatever steps are necessary to get your app
 * Code review
 * Other guidelines
 
+Java libs
+https://github.com/bitcoinj/bitcoinj.git
+
+Go lang libs
+https://github.com/decred/atomicswap.git
+https://github.com/btcsuite/btcd.git
+https://github.com/btcsuite/btcutil.git
+https://github.com/btcsuite/btcwallet.git
+
+
 ### Who do I talk to? ###
 
 * Repo owner or admin
