@@ -52,6 +52,10 @@ public class BitcoinRPCService {
         return bitcoindRpcClient.getRawChangeAddress();
     }
 
+    public String getPrivateKey(String address) {
+        return  bitcoindRpcClient.dumpPrivKey(address);
+    }
+
 
     public String publishTransaction(String hex) {
         return bitcoindRpcClient.sendRawTransaction(hex);
@@ -63,7 +67,7 @@ public class BitcoinRPCService {
         try {
             resultMap = (Map<String, Object>) bitcoindRpcClient.query("fundrawtransaction", txHex);
             if (Objects.nonNull(resultMap.get("hex"))) {
-                result.fee = Coin.parseCoin((String) resultMap.get("fee"));
+                result.fee = Coin.parseCoin((String) resultMap.get("fee").toString());
                 result.hex = (String) resultMap.get("hex");
                 result.changepos = (Long) resultMap.get("changepos");
             }

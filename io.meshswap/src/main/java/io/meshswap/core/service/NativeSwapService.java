@@ -109,7 +109,7 @@ public class NativeSwapService implements AtomicSwapService {
         byte[] scriptHash = SwapUtils.hash160(contract.getProgram());
 
         LegacyAddress contractP2SH = LegacyAddress.fromScriptHash(networkParameters, scriptHash);
-        Script contractP2SHPkScript = ScriptBuilder.createP2SHOutputScript(contract);
+        Script contractP2SHPkScript = ScriptBuilder.createP2SHOutputScript(contractP2SH.getHash());
 
         Transaction unsignedContract = new Transaction(networkParameters);
         unsignedContract.addOutput(new TransactionOutput(networkParameters,unsignedContract,Coin.valueOf(amount.intValue()), contractP2SHPkScript.getProgram()));
@@ -118,13 +118,13 @@ public class NativeSwapService implements AtomicSwapService {
             Map opResult = bitcoinRPCService.signRawTransaction(fundRawTransactionResult.hex);
             if (opResult.containsKey("hex") && (Boolean) opResult.get("complete")) {
                 Transaction signedTransaction = new Transaction(networkParameters, Hex.decode((String) opResult.get("hex")));
-                log.info("signed tx [{}] {}", signedTransaction.getTxId(), opResult.get("hex"));
+                log.info("signed init tx [{}] {}", signedTransaction.getTxId(), opResult.get("hex"));
                 //bitcoinRPCService.publishTransaction((String) opResult.get("hex"));
                 result.contractHex = (String) opResult.get("hex");
                 result.secretHash = secretHash.toString();
                 result.secret = Hex.toHexString(secret);
                 result.contractTx = signedTransaction.getTxId().toString();
-                cmdRedeem(Hex.toHexString(contract.getProgram()),Hex.toHexString(signedTransaction.getTxId().getBytes()),Hex.toHexString(secret));
+                cmdRedeem(Hex.toHexString(contract.getProgram()),Hex.toHexString(signedTransaction.bitcoinSerialize()),Hex.toHexString(secret));
             }
         } else {
             log.error("Could nod fund transaction!");
@@ -153,17 +153,20 @@ public class NativeSwapService implements AtomicSwapService {
         }
         Transaction tx = new Transaction(networkParameters, Hex.decode(contractTxHex));
         byte[] secretHash = script.getChunks().get(5).data;
+        log.info("extracted secret hash {}",Hex.toHexString(secretHash));
         byte[] recipientHash160 = script.getChunks().get(9).data;
         byte[] refundHash160 = script.getChunks().get(16).data;
         BigInteger secretSize = Utils.decodeMPI(Utils.reverseBytes(script.getChunks().get(2).data), false);
         BigInteger lockTime = Utils.decodeMPI(Utils.reverseBytes(script.getChunks().get(11).data), false);
-        Address recipientAddress = LegacyAddress.fromString(networkParameters, Hex.toHexString(recipientHash160));
+        Address recipientAddress = LegacyAddress.fromPubKeyHash(networkParameters, recipientHash160);
         byte[] contractHash = SwapUtils.hash160(contract);
+        LegacyAddress contractP2SH = LegacyAddress.fromScriptHash(networkParameters, contractHash);
+        Script contractP2SHPkScript = ScriptBuilder.createP2SHOutputScript(contractP2SH.getHash());
         int contractOut = -1;
         int outIndex = 0;
         for (TransactionOutput output : tx.getOutputs()) {
-            LegacyAddress out = output.getAddressFromP2PKHScript(networkParameters);
-            if (Arrays.equals(out.getHash(), contractHash)) {
+            Script outScript = output.getScriptPubKey();
+            if (Arrays.equals(outScript.getProgram(), contractP2SHPkScript.getProgram())) {
                 contractOut = outIndex;
                 break;
             }
@@ -175,7 +178,7 @@ public class NativeSwapService implements AtomicSwapService {
 
         String addrStr = bitcoinRPCService.getRawChangeAddress();
 
-        Script outScript = ScriptBuilder.createP2PKHOutputScript(LegacyAddress.fromString(networkParameters,addrStr).getHash());
+        Script outScript = ScriptBuilder.createP2PKHOutputScript(recipientHash160);
         Sha256Hash contractTxHash = tx.getTxId();
         Transaction redeemTx = new Transaction(networkParameters);
         redeemTx.addInput(
@@ -187,9 +190,37 @@ public class NativeSwapService implements AtomicSwapService {
         Coin fee = FeeUtils.feeForSerializeSize(feePerKb.useFee,redeemSize);
         redeemTx.getOutputs().get(0).setValue(tx.getOutput(contractOut).getValue());
         //check for isDust
-
-
+        String privKeyStr = bitcoinRPCService.getPrivateKey(addrStr);
+        DumpedPrivateKey dumpedPrivateKey = DumpedPrivateKey.fromBase58(networkParameters, privKeyStr);
+        ECKey key = dumpedPrivateKey.getKey();
+        ECKey.ECDSASignature redeemSig = calcSignatureHash(redeemTx, 0, contract, recipientAddress, key);
+        Script redeemSigScript = createRedeemP2SHContract(contract, redeemSig.encodeToDER(), key.getPubKey(), Hex.decode(secret));
+        redeemTx.getInput(0).setScriptSig(redeemSigScript);
+        Sha256Hash redeemTxHash = redeemTx.getTxId();
+        Coin redeemFeePerKb = fee.div(redeemTx.bitcoinSerialize().length);
+        redeemFeePerKb = redeemFeePerKb.div(100000);
+       // log.info("redeem tx {}",redeemTx.)
+        log.info("redeem tx [{}] {}", redeemTx.getTxId(), Hex.toHexString(redeemTx.bitcoinSerialize()));
         return result;
+    }
+
+    protected ECKey.ECDSASignature calcSignatureHash(Transaction redeemTx, int outIdx, byte[] contract, Address recipientAddress, ECKey key) {
+        Script contractScript = new Script(contract);
+        redeemTx.getInput(0).setScriptSig(contractScript);
+        byte[] serializedTx = redeemTx.bitcoinSerialize();
+        Sha256Hash first = Sha256Hash.of(serializedTx);
+        Sha256Hash second = Sha256Hash.of(first.getBytes());
+        return key.sign(second);
+    }
+
+    protected Script createRedeemP2SHContract(byte[] contract, byte[] signature, byte[] pubKey, byte[] secret) {
+        ScriptBuilder builder = new ScriptBuilder();
+        builder.data(signature);
+        builder.data(pubKey);
+        builder.data(secret);
+        builder.number(1);
+        builder.data(contract);
+        return builder.build();
     }
 
     public String createP2SHAddress(String initiator, String participant) {
