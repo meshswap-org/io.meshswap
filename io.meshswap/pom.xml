@@ -44,10 +44,6 @@
 			<artifactId>lombok</artifactId>
 			<optional>true</optional>
 		</dependency>
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.bitcoinj/bitcoinj-core -->
 		<dependency>
 			<groupId>org.bitcoinj</groupId>

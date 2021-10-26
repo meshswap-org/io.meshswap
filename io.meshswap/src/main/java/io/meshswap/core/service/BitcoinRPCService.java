@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.bitcoinj.core.Coin;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient;
 import wf.bitcoin.javabitcoindrpcclient.BitcoinRPCException;
@@ -12,11 +14,11 @@ import wf.bitcoin.javabitcoindrpcclient.GenericRpcException;
 
 import javax.annotation.PostConstruct;
 import java.math.BigDecimal;
+import java.net.MalformedURLException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
-@Service
 @Slf4j
 public class BitcoinRPCService {
 
@@ -35,14 +37,13 @@ public class BitcoinRPCService {
         public Long changepos;
     }
 
-    @Autowired
     BitcoinJSONRPCClient bitcoindRpcClient;
 
-    @PostConstruct
-    protected void init() {
+    public void init(String rpcUrl) {
         try {
+            bitcoindRpcClient = new BitcoinJSONRPCClient(rpcUrl);
             bitcoindRpcClient.query("loadwallet", "wallet");
-        } catch (BitcoinRPCException e) {
+        } catch (BitcoinRPCException | MalformedURLException e) {
             log.error("Load wallet error {}", e.getMessage());
         }
         BigDecimal balance = bitcoindRpcClient.getBalance();
