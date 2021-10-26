@@ -15,6 +15,8 @@ import org.bitcoinj.script.ScriptBuilder;
 import org.bitcoinj.script.ScriptOpCodes;
 import org.bouncycastle.util.encoders.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -55,7 +57,12 @@ public class NativeSwapService implements AtomicSwapService {
     private int refundAtomicSwapSigScriptSize = 1 + 73 + 1 + 33 + 1;
 
     @Autowired
-    BitcoinRPCService bitcoinRPCService;
+    @Qualifier("initiator")
+    BitcoinRPCService initiatorBitcoinRPCService;
+
+    @Autowired
+    @Qualifier("participant")
+    BitcoinRPCService participantBitcoinRPCService;
 
     public Script generateLockScript(String initiatorAddress, String participantAddress, long lockTime, HashCode secretHash) {
 
@@ -95,20 +102,26 @@ public class NativeSwapService implements AtomicSwapService {
     }
 
     public InitiateResult cmdInitiate(String initiatorAddress, String participantAddressStr, BigDecimal amount) {
+        BitcoinRPCService bitcoinRPCService = initiatorBitcoinRPCService;
         InitiateResult result = new InitiateResult();
         Address participantAddress = LegacyAddress.fromString(networkParameters, participantAddressStr);
         byte[] secret = new byte[32]; //Longs.toByteArray(;);
-        random.nextBytes(secret);
+        secret = Hex.decode("15315fd7c4d0a0a7c41a734a7589fed110251421839fb1539a777a3d02d202c7");
+        //random.nextBytes(secret);
         ECKey key;
         log.info("Secret {}",Hex.toHexString(secret));
         HashCode secretHash = Hashing.sha256().hashBytes(secret);
         log.info("Hash of secret {}",Hex.toHexString(secretHash.asBytes()));
         Instant now = Instant.now();
         long lockTime =  Instant.now().plus(48, ChronoUnit.HOURS).getEpochSecond();
+        lockTime = 1634891979;
         Script contract = generateLockScript(initiatorAddress, participantAddressStr, lockTime, secretHash);
-        byte[] scriptHash = SwapUtils.hash160(contract.getProgram());
+
+        log.info("Contract: {}",Hex.toHexString(contract.getProgram()));
+        byte[] scriptHash = Utils.sha256hash160(contract.getProgram());
 
         LegacyAddress contractP2SH = LegacyAddress.fromScriptHash(networkParameters, scriptHash);
+        log.info("contract P2SH {}",contractP2SH.toString());
         Script contractP2SHPkScript = ScriptBuilder.createP2SHOutputScript(contractP2SH.getHash());
 
         Transaction unsignedContract = new Transaction(networkParameters);
@@ -145,6 +158,7 @@ public class NativeSwapService implements AtomicSwapService {
 
 
     public RedeemResult cmdRedeem(String contractHex, String contractTxHex, String secret) {
+        BitcoinRPCService bitcoinRPCService = participantBitcoinRPCService;
         byte[] contract = Hex.decode(contractHex);
         Script script = new Script(Hex.decode(contractHex));
         RedeemResult result = new RedeemResult();
@@ -159,7 +173,7 @@ public class NativeSwapService implements AtomicSwapService {
         BigInteger secretSize = Utils.decodeMPI(Utils.reverseBytes(script.getChunks().get(2).data), false);
         BigInteger lockTime = Utils.decodeMPI(Utils.reverseBytes(script.getChunks().get(11).data), false);
         Address recipientAddress = LegacyAddress.fromPubKeyHash(networkParameters, recipientHash160);
-        byte[] contractHash = SwapUtils.hash160(contract);
+        byte[] contractHash = Utils.sha256hash160(contract);
         LegacyAddress contractP2SH = LegacyAddress.fromScriptHash(networkParameters, contractHash);
         Script contractP2SHPkScript = ScriptBuilder.createP2SHOutputScript(contractP2SH.getHash());
         int contractOut = -1;
@@ -188,7 +202,8 @@ public class NativeSwapService implements AtomicSwapService {
         int redeemSize = estimateRedeemSerializeSize(contract,redeemTx.getOutputs());
         BitcoinRPCService.FeePerKbResult feePerKb = bitcoinRPCService.getFeePerKb();
         Coin fee = FeeUtils.feeForSerializeSize(feePerKb.useFee,redeemSize);
-        redeemTx.getOutputs().get(0).setValue(tx.getOutput(contractOut).getValue());
+        fee = Coin.valueOf(400);
+        redeemTx.getOutputs().get(0).setValue(tx.getOutput(contractOut).getValue().subtract(fee) );
         //check for isDust
         String privKeyStr = bitcoinRPCService.getPrivateKey(addrStr);
         DumpedPrivateKey dumpedPrivateKey = DumpedPrivateKey.fromBase58(networkParameters, privKeyStr);
