@@ -46,7 +46,7 @@ public class RemoteSwapService implements AtomicSwapService {
     }
 
     @Override
-    public RedeemResult cmdRedeem(String contractHex, String contractTxHex, String secret) {
+    public RedeemResult cmdRedeem(String contractHex, String contractTxHex, String secret, String participantAddressStr) {
         return null;
     }
 }

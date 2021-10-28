@@ -7,5 +7,5 @@ import java.math.BigDecimal;
 
 public interface AtomicSwapService {
     public InitiateResult cmdInitiate(String initiatorAddress, String participantAddressStr, BigDecimal amount);
-    public RedeemResult cmdRedeem(String contractHex, String contractTxHex, String secret);
+    public RedeemResult cmdRedeem(String contractHex, String contractTxHex, String secret, String participantAddressStr);
 }
