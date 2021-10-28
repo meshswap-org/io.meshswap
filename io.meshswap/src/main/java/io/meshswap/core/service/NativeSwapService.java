@@ -9,10 +9,16 @@ import io.meshswap.core.util.FeeUtils;
 import io.meshswap.core.util.SwapUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.bitcoinj.core.*;
+import org.bitcoinj.crypto.TransactionSignature;
 import org.bitcoinj.params.RegTestParams;
+import org.bitcoinj.params.TestNet3Params;
 import org.bitcoinj.script.Script;
 import org.bitcoinj.script.ScriptBuilder;
 import org.bitcoinj.script.ScriptOpCodes;
+import org.bitcoinj.signers.LocalTransactionSigner;
+import org.bitcoinj.signers.TransactionSigner;
+import org.bitcoinj.wallet.DecryptingKeyBag;
+import org.bitcoinj.wallet.KeyBag;
 import org.bouncycastle.util.encoders.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -31,7 +37,7 @@ import java.util.*;
 public class NativeSwapService implements AtomicSwapService {
     private Random random = new Random();
     private final int secretSize = 32;
-    private NetworkParameters networkParameters = RegTestParams.get();
+    private NetworkParameters networkParameters = TestNet3Params.get();
     // redeemAtomicSwapSigScriptSize is the worst case (largest) serialize size
     // of a transaction input script to redeem the atomic swap contract.  This
     // does not include final push for the contract itself.
@@ -80,6 +86,7 @@ public class NativeSwapService implements AtomicSwapService {
             builder.op(ScriptOpCodes.OP_EQUALVERIFY);
             builder.op(ScriptOpCodes.OP_DUP);
             builder.op(ScriptOpCodes.OP_HASH160);
+            log.info("DEBUG: redeem addr hash {}",Hex.toHexString(redeemAddr.getHash()));
             builder.data(redeemAddr.getHash());
         }
         builder.op(ScriptOpCodes.OP_ELSE);
@@ -137,7 +144,7 @@ public class NativeSwapService implements AtomicSwapService {
                 result.secretHash = secretHash.toString();
                 result.secret = Hex.toHexString(secret);
                 result.contractTx = signedTransaction.getTxId().toString();
-                cmdRedeem(Hex.toHexString(contract.getProgram()),Hex.toHexString(signedTransaction.bitcoinSerialize()),Hex.toHexString(secret));
+                cmdRedeem(Hex.toHexString(contract.getProgram()),Hex.toHexString(signedTransaction.bitcoinSerialize()),Hex.toHexString(secret), participantAddressStr);
             }
         } else {
             log.error("Could nod fund transaction!");
@@ -157,7 +164,7 @@ public class NativeSwapService implements AtomicSwapService {
     }
 
 
-    public RedeemResult cmdRedeem(String contractHex, String contractTxHex, String secret) {
+    public RedeemResult cmdRedeem(String contractHex, String contractTxHex, String secret, String participantAddrStr) {
         BitcoinRPCService bitcoinRPCService = participantBitcoinRPCService;
         byte[] contract = Hex.decode(contractHex);
         Script script = new Script(Hex.decode(contractHex));
@@ -190,7 +197,8 @@ public class NativeSwapService implements AtomicSwapService {
             return (RedeemResult) AtomicSwapServiceResult.error(2);
         }
 
-        String addrStr = bitcoinRPCService.getRawChangeAddress();
+        String addrStr = participantAddrStr;//bitcoinRPCService.getRawChangeAddress();
+        log.info("Raw change addr for redeem: {}", addrStr);
 
         Script outScript = ScriptBuilder.createP2PKHOutputScript(recipientHash160);
         Sha256Hash contractTxHash = tx.getTxId();
@@ -208,8 +216,13 @@ public class NativeSwapService implements AtomicSwapService {
         String privKeyStr = bitcoinRPCService.getPrivateKey(addrStr);
         DumpedPrivateKey dumpedPrivateKey = DumpedPrivateKey.fromBase58(networkParameters, privKeyStr);
         ECKey key = dumpedPrivateKey.getKey();
-        ECKey.ECDSASignature redeemSig = calcSignatureHash(redeemTx, 0, contract, recipientAddress, key);
-        Script redeemSigScript = createRedeemP2SHContract(contract, redeemSig.encodeToDER(), key.getPubKey(), Hex.decode(secret));
+        byte[] redeemSig = calcSignatureHash(redeemTx, 0, contract, recipientAddress, key);
+        Script redeemSigScript = createRedeemP2SHContract(contract, redeemSig, key.getPubKey(), Hex.decode(secret));
+        //////////
+        byte[] hash160 = Utils.sha256hash160(key.getPubKey());
+        log.info("DEBUG: hash160 of pubkey is {}",Hex.toHexString(hash160));
+        Address recipientAddr = LegacyAddress.fromString(networkParameters, addrStr);
+        log.info("DEBUG: recipient addr hash is {}",Hex.toHexString(recipientAddr.getHash()));
         redeemTx.getInput(0).setScriptSig(redeemSigScript);
         Sha256Hash redeemTxHash = redeemTx.getTxId();
         Coin redeemFeePerKb = fee.div(redeemTx.bitcoinSerialize().length);
@@ -219,13 +232,23 @@ public class NativeSwapService implements AtomicSwapService {
         return result;
     }
 
-    protected ECKey.ECDSASignature calcSignatureHash(Transaction redeemTx, int outIdx, byte[] contract, Address recipientAddress, ECKey key) {
+    protected byte[] calcSignatureHash(Transaction redeemTx, int outIdx, byte[] contract, Address recipientAddress, ECKey key) {
+        /*
+        TransactionSigner signer = new LocalTransactionSigner();
+        KeyBag maybeDecryptingKeyBag = new DecryptingKeyBag(this, key);
+        TransactionSigner.ProposedTransaction proposal = new TransactionSigner.ProposedTransaction(redeemTx);
+        signer.signInputs(proposal,maybeDecryptingKeyBag);
         Script contractScript = new Script(contract);
         redeemTx.getInput(0).setScriptSig(contractScript);
         byte[] serializedTx = redeemTx.bitcoinSerialize();
         Sha256Hash first = Sha256Hash.of(serializedTx);
         Sha256Hash second = Sha256Hash.of(first.getBytes());
-        return key.sign(second);
+
+         */
+        Sha256Hash hash = redeemTx. hashForSignature(outIdx,contract,Transaction.SigHash.ALL.byteValue());
+        TransactionSignature transactionSignature = redeemTx.calculateSignature(outIdx, key, contract, Transaction.SigHash.ALL, true);
+
+        return transactionSignature.encodeToBitcoin();
     }
 
     protected Script createRedeemP2SHContract(byte[] contract, byte[] signature, byte[] pubKey, byte[] secret) {

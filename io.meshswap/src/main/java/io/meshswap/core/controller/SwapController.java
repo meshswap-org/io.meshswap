@@ -24,8 +24,8 @@ public class SwapController {
     }
 
     @GetMapping("/redeem")
-    public RedeemResult redeem(@RequestParam String contractHex, @RequestParam String contractTx, @RequestParam String secret) {
-        return swapService.cmdRedeem(contractHex,contractTx,secret);
+    public RedeemResult redeem(@RequestParam String contractHex, @RequestParam String contractTx, @RequestParam String secret, @RequestParam String participantAddress) {
+        return swapService.cmdRedeem(contractHex,contractTx,secret, participantAddress);
     }
 
 }
