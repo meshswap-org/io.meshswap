@@ -2,6 +2,7 @@ package io.meshswap.core.controller;
 
 import io.meshswap.core.dto.InitiateResult;
 import io.meshswap.core.dto.RedeemResult;
+import io.meshswap.core.dto.RefundResult;
 import io.meshswap.core.service.NativeSwapService;
 import io.meshswap.core.service.RemoteSwapService;
 import io.meshswap.core.util.RunCommandViaSsh;
@@ -26,6 +27,11 @@ public class SwapController {
     @GetMapping("/redeem")
     public RedeemResult redeem(@RequestParam String contractHex, @RequestParam String contractTx, @RequestParam String secret, @RequestParam String participantAddress) {
         return swapService.cmdRedeem(contractHex,contractTx,secret, participantAddress);
+    }
+
+    @GetMapping("/refund")
+    public RefundResult refund(@RequestParam String contractHex, @RequestParam String contractTx) {
+        return swapService.cmdRefund(contractHex,contractTx);
     }
 
 }
