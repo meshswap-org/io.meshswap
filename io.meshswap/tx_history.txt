@@ -70,3 +70,33 @@ Balance of participant wallet n2kbp2oTRz9R8N3Jp5wPFtBaLeJTWffRRA
 0.00000000
 PASSED
 
+
+
+initiator  mhbrW1Qo1A34psxv7aP9X9C4vaDZRMeBVR
+participant(my) n4SXWagWXja9Ne7Y15rkcPhg84qqqP81x3
+
+
+2021-11-01 18:03:15.897  INFO 45576 --- [  restartedMain] i.m.core.service.BitcoinRPCService       : Wallet balance 0.00040771
+2021-11-01 18:03:16.007 ERROR 45576 --- [  restartedMain] i.m.core.service.BitcoinRPCService       : Load wallet error RPC Query Failed (method: loadwallet, params: [wallet], response code: 500 responseMessage Internal Server Error, response: {"result":null,"error":{"code":-35,"message":"Wallet file verification failed. Refusing to load database. Data file '/home/ec2-user/testnet-2/testnet3/wallets/wallet/wallet.dat' is already loaded."},"id":"1"}
+
+2021-11-01 18:03:16.061  INFO 45576 --- [  restartedMain] i.m.core.service.BitcoinRPCService       : Wallet balance 0.00012670
+2021-11-01 18:03:16.443  INFO 45576 --- [  restartedMain] o.s.b.d.a.OptionalLiveReloadServer       : LiveReload server is running on port 35729
+2021-11-01 18:03:16.475  INFO 45576 --- [  restartedMain] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 80 (http) with context path ''
+2021-11-01 18:03:16.489  INFO 45576 --- [  restartedMain] io.meshswap.core.CoreApplication         : Started CoreApplication in 3.476 seconds (JVM running for 4.395)
+2021-11-01 18:03:26.180  INFO 45576 --- [p-nio-80-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2021-11-01 18:03:26.181  INFO 45576 --- [p-nio-80-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2021-11-01 18:03:26.183  INFO 45576 --- [p-nio-80-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2021-11-01 18:03:26.231  INFO 45576 --- [p-nio-80-exec-1] i.m.core.service.NativeSwapService       : Secret e548831041ce85e32f732a38eea6a3a1a72abefebf4db4527b2b581427c838cb
+2021-11-01 18:03:26.239  INFO 45576 --- [p-nio-80-exec-1] i.m.core.service.NativeSwapService       : Hash of secret 103c7d7bea1aa98ccf593b5098a727334e798b51660aad72b2d44025f69674d5
+2021-11-01 18:03:26.242  INFO 45576 --- [p-nio-80-exec-1] i.m.core.service.NativeSwapService       : DEBUG: redeem addr hash 207c5ea9ec787feedfcc3f06836e172ebff1b012
+2021-11-01 18:03:26.244  INFO 45576 --- [p-nio-80-exec-1] i.m.core.service.NativeSwapService       : Contract: 6382012088a820103c7d7bea1aa98ccf593b5098a727334e798b51660aad72b2d44025f69674d58876a914207c5ea9ec787feedfcc3f06836e172ebff1b01267044e618161b17576a91416dd7eb004c967fb5369df4b7fe95d2f08dd94096888ac
+2021-11-01 18:03:26.248  INFO 45576 --- [p-nio-80-exec-1] i.m.core.service.NativeSwapService       : contract P2SH 2N8UQZ9Z2ka84kmRXB8PZWXNyDiR43HhsFv
+2021-11-01 18:03:26.453  INFO 45576 --- [p-nio-80-exec-1] i.m.core.service.NativeSwapService       : signed init tx [402d1cdd175980f84f43b890284258dd037e772b968835844345778556682394] 0100000000010190334073cb704fe4a7b77c055b0107b174f94141c3ce45a9ec286cbc6371874d0100000000feffffff021198000000000000160014ebebc851f8aec0b1960a2f0da4524127de224f62e80300000000000017a914a7081d65d78ed958f605f4f79f5d263911a0e0758702473044022051cd56eb848f353726d6f49d6072895fc2ef497cb9375c411ff0b2d29ff32aeb02206f7e0d54f479bf4b04afb78749958e3fbfae3e4b6649859f7dab21f39bb5f0e00121036182546df24b04ba4c8fd8a36ecf9b2a000c9446fc775e2a85fb31869b05c40700000000
+2021-11-01 18:03:26.457  INFO 45576 --- [p-nio-80-exec-1] i.m.core.service.NativeSwapService       : extracted secret hash 103c7d7bea1aa98ccf593b5098a727334e798b51660aad72b2d44025f69674d5
+2021-11-01 18:03:26.463  INFO 45576 --- [p-nio-80-exec-1] i.m.core.service.NativeSwapService       : Raw change addr for redeem: miUiuZE4sRoTKzS4QcT66BQbpLhbLaDWZs
+2021-11-01 18:03:26.661  INFO 45576 --- [p-nio-80-exec-1] i.m.core.service.NativeSwapService       : private key cUS9V2Fcnby3NkfiM8q7AcSHiZJRhQHYpMPbDk88ceTJFGRRVid4
+2021-11-01 18:03:26.751  INFO 45576 --- [p-nio-80-exec-1] i.m.core.service.NativeSwapService       : redeem tx [55f3191fef0b1adee76243af9291cea91f87992fcbde0a6ce8094fbe76a9f09e] 01000000019423685685774543843588962b777e03dd58422890b8434ff8805917dd1c2d4001000000ef4730440220240b919f9efc1449116e45e9e9ac7ba2c08e65ca6deedd24916ceddf29146d8402207099bd5759cc8630af25de8d3a3c404572c1f17e807aaa5bdd6cb29c007ad7e681210289a0501792798547a93d6d27bc58c4755abc73b68d88e52180638d7eb1141c2920e548831041ce85e32f732a38eea6a3a1a72abefebf4db4527b2b581427c838cb514c616382012088a820103c7d7bea1aa98ccf593b5098a727334e798b51660aad72b2d44025f69674d58876a914207c5ea9ec787feedfcc3f06836e172ebff1b01267044e618161b17576a91416dd7eb004c967fb5369df4b7fe95d2f08dd94096888acffffffff0158020000000000001976a914207c5ea9ec787feedfcc3f06836e172ebff1b01288ac00000000
+2021-11-01 18:03:26.841  WARN 45576 --- [p-nio-80-exec-1] org.bitcoinj.core.Transaction            : You are setting the lock time on a transaction but none of the inputs have non-default sequence numbers. This will not do what you expect!
+2021-11-01 18:03:26.940  INFO 45576 --- [p-nio-80-exec-1] i.m.core.service.NativeSwapService       : Refund tx [d50e0d9e8c12c1b321d0b8dbbe436214a12aca577c12f363a816d6c6c8687bce] 01000000019423685685774543843588962b777e03dd58422890b8434ff8805917dd1c2d4001000000cf48304502210089657f8b88ea9f582afe0af3550dbf7b7c25dde37740e34ebf47fea19119bfc2022059c05622d8bc8c2de9a53f5a0e01fb1985a96ef4f703930f04272438c0ddcf5481210215d9b47a4343e793cdcf8ff4e8e699eb49b138698b9c69b5cd33c9128c2c81a7004c616382012088a820103c7d7bea1aa98ccf593b5098a727334e798b51660aad72b2d44025f69674d58876a914207c5ea9ec787feedfcc3f06836e172ebff1b01267044e618161b17576a91416dd7eb004c967fb5369df4b7fe95d2f08dd94096888ac0000000001bc020000000000001976a9149897645c1e5053509887f5dc80d44417a85a0c4588ac4e618161
+
+
