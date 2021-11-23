@@ -16,7 +16,7 @@ public class Info {
         private String version;
     }
 
-    @GetMapping("/info")
+    @GetMapping("/api/v1/info")
     public InfoData info() {
         return new InfoData("MeshSwap", "0.0.1");
     }
