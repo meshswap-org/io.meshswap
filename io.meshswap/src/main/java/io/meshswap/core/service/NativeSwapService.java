@@ -7,23 +7,16 @@ import io.meshswap.core.dto.InitiateResult;
 import io.meshswap.core.dto.RedeemResult;
 import io.meshswap.core.dto.RefundResult;
 import io.meshswap.core.util.FeeUtils;
-import io.meshswap.core.util.SwapUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.bitcoinj.core.*;
 import org.bitcoinj.crypto.TransactionSignature;
-import org.bitcoinj.params.RegTestParams;
 import org.bitcoinj.params.TestNet3Params;
 import org.bitcoinj.script.Script;
 import org.bitcoinj.script.ScriptBuilder;
 import org.bitcoinj.script.ScriptOpCodes;
-import org.bitcoinj.signers.LocalTransactionSigner;
-import org.bitcoinj.signers.TransactionSigner;
-import org.bitcoinj.wallet.DecryptingKeyBag;
-import org.bitcoinj.wallet.KeyBag;
 import org.bouncycastle.util.encoders.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -147,7 +140,7 @@ public class NativeSwapService implements AtomicSwapService {
         return refundTx;
     }
 
-    public InitiateResult cmdInitiate(String initiatorAddress, String participantAddressStr, BigDecimal amount) {
+    public InitiateResult cmdInitiate(String initiatorAddress, String participantAddressStr, BigDecimal amount, boolean signTx) {
         BitcoinRPCService bitcoinRPCService = initiatorBitcoinRPCService;
         InitiateResult result = new InitiateResult();
         Address participantAddress = LegacyAddress.fromString(networkParameters, participantAddressStr);
@@ -161,7 +154,7 @@ public class NativeSwapService implements AtomicSwapService {
         //!!!
         long lockTime =  Instant.now().plus(48, ChronoUnit.HOURS).getEpochSecond();
         Script contract = generateLockScript(initiatorAddress, participantAddressStr, lockTime, secretHash);
-
+        result.contractScript = Hex.toHexString(contract.getProgram());
         log.info("Contract: {}",Hex.toHexString(contract.getProgram()));
         byte[] scriptHash = Utils.sha256hash160(contract.getProgram());
 
@@ -172,21 +165,23 @@ public class NativeSwapService implements AtomicSwapService {
         Transaction unsignedContract = new Transaction(networkParameters);
         unsignedContract.addOutput(new TransactionOutput(networkParameters,unsignedContract,Coin.valueOf(amount.intValue()), contractP2SHPkScript.getProgram()));
         BitcoinRPCService.FundRawTransactionResult fundRawTransactionResult = bitcoinRPCService.fundRawTransaction(Hex.toHexString(unsignedContract.bitcoinSerialize()));
-        if (StringUtils.hasLength(fundRawTransactionResult.hex)) {
+        result.secretHash = secretHash.toString();
+        result.secret = Hex.toHexString(secret);
+
+        if (signTx && StringUtils.hasLength(fundRawTransactionResult.hex)) {
             Map opResult = bitcoinRPCService.signRawTransaction(fundRawTransactionResult.hex);
             if (opResult.containsKey("hex") && (Boolean) opResult.get("complete")) {
                 Transaction signedTransaction = new Transaction(networkParameters, Hex.decode((String) opResult.get("hex")));
                 log.info("signed init tx [{}] {}", signedTransaction.getTxId(), opResult.get("hex"));
                 //bitcoinRPCService.publishTransaction((String) opResult.get("hex"));
-                result.contractHex = (String) opResult.get("hex");
-                result.secretHash = secretHash.toString();
-                result.secret = Hex.toHexString(secret);
-                result.contractTx = signedTransaction.getTxId().toString();
-                cmdRedeem(Hex.toHexString(contract.getProgram()),Hex.toHexString(signedTransaction.bitcoinSerialize()),Hex.toHexString(secret), participantAddressStr);
-                buildRefundTx(contract.getProgram(), signedTransaction, BigDecimal.ZERO, BigDecimal.ZERO);
+                result.contractTx = (String) opResult.get("hex");
+                result.contractTxId = signedTransaction.getTxId().toString();
+               // cmdRedeem(Hex.toHexString(contract.getProgram()),Hex.toHexString(signedTransaction.bitcoinSerialize()),Hex.toHexString(secret), participantAddressStr);
+               // buildRefundTx(contract.getProgram(), signedTransaction, BigDecimal.ZERO, BigDecimal.ZERO);
             }
         } else {
-            log.error("Could nod fund transaction!");
+            result.contractTx = fundRawTransactionResult.hex;
+            result.contractTxId = unsignedContract.getTxId().toString();
         }
         return result;
     }

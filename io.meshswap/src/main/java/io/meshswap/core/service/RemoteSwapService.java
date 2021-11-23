@@ -17,7 +17,7 @@ public class RemoteSwapService implements AtomicSwapService {
     RunCommandViaSsh runCommandViaSsh;
 
     @Override
-    public InitiateResult cmdInitiate(String initiatorAddress, String participantAddressStr, BigDecimal amount) {
+    public InitiateResult cmdInitiate(String initiatorAddress, String participantAddressStr, BigDecimal amount, boolean signTx) {
         InitiateResult result = new InitiateResult();
         String runcmd = String.format("/home/ec2-user/bin/btcatomicswap -testnet -rpcuser=test -rpcpass=test -s localhost:18201 initiate %s %s",participantAddressStr,amount.movePointLeft(8).toString());
         log.info("CMD: {}",runcmd);
@@ -34,7 +34,7 @@ public class RemoteSwapService implements AtomicSwapService {
                 String[] parts = line.split(" ");
                 result.secretHash = parts[1].trim();
             } else if (line.startsWith("Contract")) {
-                result.contractHex = execResult.get(lineIndex+1);
+                result.contractTx = execResult.get(lineIndex+1);
             } else if (line.startsWith("Contract transaction")) {
                 result.redeemTx = execResult.get(lineIndex+1);
             } else if (line.startsWith("Refund transaction")) {

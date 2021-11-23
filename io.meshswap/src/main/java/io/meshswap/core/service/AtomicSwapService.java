@@ -6,6 +6,6 @@ import io.meshswap.core.dto.RedeemResult;
 import java.math.BigDecimal;
 
 public interface AtomicSwapService {
-    public InitiateResult cmdInitiate(String initiatorAddress, String participantAddressStr, BigDecimal amount);
+    public InitiateResult cmdInitiate(String initiatorAddress, String participantAddressStr, BigDecimal amount, boolean signTx);
     public RedeemResult cmdRedeem(String contractHex, String contractTxHex, String secret, String participantAddressStr);
 }

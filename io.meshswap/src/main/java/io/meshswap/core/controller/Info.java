@@ -3,9 +3,11 @@ package io.meshswap.core.controller;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@RequestMapping("/api/v1")
 public class Info {
     @AllArgsConstructor
     @Data
@@ -14,7 +16,7 @@ public class Info {
         private String version;
     }
 
-    @GetMapping("/api/v1/info")
+    @GetMapping("/info")
     public InfoData info() {
         return new InfoData("MeshSwap", "0.0.1");
     }
