@@ -140,48 +140,58 @@ public class NativeSwapService implements AtomicSwapService {
         return refundTx;
     }
 
-    public InitiateResult cmdInitiate(String initiatorAddress, String participantAddressStr, BigDecimal amount, boolean signTx) {
+    public InitiateResult cmdInitiate(String initiatorAddressStr, String participantAddressStr, BigDecimal amount, boolean signTx) {
         BitcoinRPCService bitcoinRPCService = initiatorBitcoinRPCService;
         InitiateResult result = new InitiateResult();
-        Address participantAddress = LegacyAddress.fromString(networkParameters, participantAddressStr);
-        byte[] secret = new byte[32]; //Longs.toByteArray(;);
-        random.nextBytes(secret);
-        ECKey key;
-        log.info("Secret {}",Hex.toHexString(secret));
-        HashCode secretHash = Hashing.sha256().hashBytes(secret);
-        log.info("Hash of secret {}",Hex.toHexString(secretHash.asBytes()));
-        Instant now = Instant.now();
-        //!!!
-        long lockTime =  Instant.now().plus(48, ChronoUnit.HOURS).getEpochSecond();
-        Script contract = generateLockScript(initiatorAddress, participantAddressStr, lockTime, secretHash);
-        result.contractScript = Hex.toHexString(contract.getProgram());
-        log.info("Contract: {}",Hex.toHexString(contract.getProgram()));
-        byte[] scriptHash = Utils.sha256hash160(contract.getProgram());
+        try {
+            // validate addresses;
+            LegacyAddress.fromString(networkParameters, initiatorAddressStr);
+            LegacyAddress.fromString(networkParameters, participantAddressStr);
 
-        LegacyAddress contractP2SH = LegacyAddress.fromScriptHash(networkParameters, scriptHash);
-        log.info("contract P2SH {}",contractP2SH.toString());
-        Script contractP2SHPkScript = ScriptBuilder.createP2SHOutputScript(contractP2SH.getHash());
+            byte[] secret = new byte[32]; //Longs.toByteArray(;);
+            random.nextBytes(secret);
+            ECKey key;
+            log.info("Secret {}", Hex.toHexString(secret));
+            HashCode secretHash = Hashing.sha256().hashBytes(secret);
+            log.info("Hash of secret {}", Hex.toHexString(secretHash.asBytes()));
+            Instant now = Instant.now();
+            //!!!
+            long lockTime = Instant.now().plus(48, ChronoUnit.HOURS).getEpochSecond();
+            Script contract = generateLockScript(initiatorAddressStr, participantAddressStr, lockTime, secretHash);
+            result.contractScript = Hex.toHexString(contract.getProgram());
+            log.info("Contract: {}", Hex.toHexString(contract.getProgram()));
+            byte[] scriptHash = Utils.sha256hash160(contract.getProgram());
 
-        Transaction unsignedContract = new Transaction(networkParameters);
-        unsignedContract.addOutput(new TransactionOutput(networkParameters,unsignedContract,Coin.valueOf(amount.intValue()), contractP2SHPkScript.getProgram()));
-        BitcoinRPCService.FundRawTransactionResult fundRawTransactionResult = bitcoinRPCService.fundRawTransaction(Hex.toHexString(unsignedContract.bitcoinSerialize()));
-        result.secretHash = secretHash.toString();
-        result.secret = Hex.toHexString(secret);
+            LegacyAddress contractP2SH = LegacyAddress.fromScriptHash(networkParameters, scriptHash);
+            log.info("contract P2SH {}", contractP2SH.toString());
+            Script contractP2SHPkScript = ScriptBuilder.createP2SHOutputScript(contractP2SH.getHash());
 
-        if (signTx && StringUtils.hasLength(fundRawTransactionResult.hex)) {
-            Map opResult = bitcoinRPCService.signRawTransaction(fundRawTransactionResult.hex);
-            if (opResult.containsKey("hex") && (Boolean) opResult.get("complete")) {
-                Transaction signedTransaction = new Transaction(networkParameters, Hex.decode((String) opResult.get("hex")));
-                log.info("signed init tx [{}] {}", signedTransaction.getTxId(), opResult.get("hex"));
-                //bitcoinRPCService.publishTransaction((String) opResult.get("hex"));
-                result.contractTx = (String) opResult.get("hex");
-                result.contractTxId = signedTransaction.getTxId().toString();
-               // cmdRedeem(Hex.toHexString(contract.getProgram()),Hex.toHexString(signedTransaction.bitcoinSerialize()),Hex.toHexString(secret), participantAddressStr);
-               // buildRefundTx(contract.getProgram(), signedTransaction, BigDecimal.ZERO, BigDecimal.ZERO);
+            Transaction unsignedContract = new Transaction(networkParameters);
+            unsignedContract.addOutput(new TransactionOutput(networkParameters, unsignedContract, Coin.valueOf(amount.intValue()), contractP2SHPkScript.getProgram()));
+            BitcoinRPCService.FundRawTransactionResult fundRawTransactionResult = bitcoinRPCService.fundRawTransaction(Hex.toHexString(unsignedContract.bitcoinSerialize()));
+            result.secretHash = secretHash.toString();
+            result.secret = Hex.toHexString(secret);
+
+            if (signTx && StringUtils.hasLength(fundRawTransactionResult.hex)) {
+                Map opResult = bitcoinRPCService.signRawTransaction(fundRawTransactionResult.hex);
+                if (opResult.containsKey("hex") && (Boolean) opResult.get("complete")) {
+                    Transaction signedTransaction = new Transaction(networkParameters, Hex.decode((String) opResult.get("hex")));
+                    log.info("signed init tx [{}] {}", signedTransaction.getTxId(), opResult.get("hex"));
+                    //bitcoinRPCService.publishTransaction((String) opResult.get("hex"));
+                    result.contractTx = (String) opResult.get("hex");
+                    result.contractTxId = signedTransaction.getTxId().toString();
+                    // cmdRedeem(Hex.toHexString(contract.getProgram()),Hex.toHexString(signedTransaction.bitcoinSerialize()),Hex.toHexString(secret), participantAddressStr);
+                    // buildRefundTx(contract.getProgram(), signedTransaction, BigDecimal.ZERO, BigDecimal.ZERO);
+                }
+            } else {
+                result.contractTx = fundRawTransactionResult.hex;
+                result.contractTxId = unsignedContract.getTxId().toString();
+
             }
-        } else {
-            result.contractTx = fundRawTransactionResult.hex;
-            result.contractTxId = unsignedContract.getTxId().toString();
+        } catch (AddressFormatException e) {
+            result.setErrorMsg("Invalid address " + e.getMessage());
+        } catch (Exception e) {
+            result.setErrorMsg(e.getMessage());
         }
         return result;
     }

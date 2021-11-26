@@ -29,8 +29,12 @@ public class SwapController {
                              @RequestParam(name = "participant", required = false) String participantAddress,
                              @RequestParam(required = false) BigDecimal amount) {
         InitiateResult result = null;
+
         if (StringUtils.hasText(initiatorAddress) && StringUtils.hasText(participantAddress) && amount != null) {
             result = swapService.cmdInitiate(initiatorAddress, participantAddress, amount, false);
+            model.addAttribute("initiatorAddress",initiatorAddress);
+            model.addAttribute("participantAddress",participantAddress);
+            model.addAttribute("amount",amount);
             model.addAttribute("initTx", result);
         }
         return "swapinit";
